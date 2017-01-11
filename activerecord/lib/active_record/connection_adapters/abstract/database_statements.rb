@@ -303,6 +303,40 @@ module ActiveRecord
         execute "INSERT INTO #{quote_table_name(table_name)} (#{key_list.join(', ')}) VALUES (#{value_list.join(', ')})", 'Fixture Insert'
       end
 
+      def insert_fixtures(fixtures, table_name)
+        columns = schema_cache.columns_hash(table_name).symbolize_keys
+
+        key_list = {}
+        fixtures.each do |fixture|
+          fixture.keys.each do |key|
+            key_list[key.to_sym] ||= true
+          end
+        end
+        key_list = key_list.keys.sort
+
+        sql = "INSERT INTO #{quote_table_name(table_name)} (#{key_list.join(', ')}) VALUES "
+
+        fixtures.each_with_index do |fixture, index|
+          sql << ", " if index != 0
+          sql << "("
+
+          fixture = fixture.symbolize_keys
+
+          key_list.each_with_index do |column, index2|
+            sql << "," if index2 != 0
+            if fixture.key?(column)
+              sql << quote(fixture[column], columns[column])
+            else
+              sql << "DEFAULT"
+            end
+          end
+
+          sql << ")"
+        end
+
+        execute sql, 'Fixtures Insert'
+      end
+
       def empty_insert_statement_value
         "DEFAULT VALUES"
       end
